@@ -281,3 +281,25 @@ fn open_connections(
         }
     })
 }
+
+#[test]
+#[cfg(any(target_os = "android", target_os = "linux"))]
+fn unix_listener_abstract_namespace_leading_nul() {
+    #[cfg(target_os = "android")]
+    use std::os::android::net::SocketAddrExt;
+    #[cfg(target_os = "linux")]
+    use std::os::linux::net::SocketAddrExt;
+    use std::os::unix::net::SocketAddr;
+
+    // Abstract names may contain (and start with) null bytes.
+    let num: u64 = rand::random();
+    let name = format!("\0mio-abstract-uds-{num}");
+    let address = SocketAddr::from_abstract_name(name.as_bytes()).unwrap();
+    let listener = UnixListener::bind_addr(&address).unwrap();
+    assert_eq!(
+        listener.local_addr().unwrap().as_abstract_name(),
+        address.as_abstract_name(),
+    );
+    // A client connecting to the same address must reach the listener.
+    let _conn = net::UnixStream::connect_addr(&address).unwrap();
+}
