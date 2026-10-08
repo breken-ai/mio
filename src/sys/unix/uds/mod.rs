@@ -72,12 +72,14 @@ fn unix_addr(address: &SocketAddr) -> (libc::sockaddr_un, libc::socklen_t) {
         )
     };
 
-    let mut addrlen = path_offset(&sockaddr) + addr.len();
+    // For abstract names `offset` accounts for the leading null byte. The name
+    // itself may contain (or start with) null bytes, so it must not be used to
+    // decide the length.
+    let mut addrlen = path_offset(&sockaddr) + offset + addr.len();
     // +1 for null byte at the end of the path, not needed for abstract
-    // namespaces (which start with a null byte).
-    match addr.first() {
-        Some(&0) | None => {}
-        Some(_) => addrlen += 1,
+    // namespaces or unnamed addresses.
+    if offset == 0 && !addr.is_empty() {
+        addrlen += 1;
     }
 
     // SAFETY: the length is fine to cast to `socklen_t` as it's 32 bits and the
@@ -173,12 +175,13 @@ mod tests {
         const PATH: &[u8] = &[0, 116, 111, 107, 105, 111];
         const PATH_LEN: usize = 6;
 
-        // Abstract addresses do not have a null terminator, so `socklen` is
-        // expected to be `PATH_LEN` + `offset`.
+        // Abstract addresses do not have a null terminator, but do start with
+        // a null byte (before the name), so `socklen` is expected to be
+        // `PATH_LEN` + `offset` + 1.
         let address = SocketAddr::from_abstract_name(PATH).unwrap();
         let (sockaddr, actual) = unix_addr(&address);
         let offset = path_offset(&sockaddr);
-        let expected = PATH_LEN + offset;
+        let expected = PATH_LEN + offset + 1;
         assert_eq!(expected as libc::socklen_t, actual)
     }
 }
