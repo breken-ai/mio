@@ -1,0 +1,13 @@
+name: Linux UDS proof
+on:
+  push:
+    branches: [ "proof2/uds-**" ]
+jobs:
+  Linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: uname -a && rustc --version && git log -2 --oneline
+      - run: cargo test --all-features --test unix_listener --lib -- abstract
