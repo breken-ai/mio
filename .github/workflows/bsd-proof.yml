@@ -1,0 +1,54 @@
+name: BSD waker proof
+on:
+  push:
+    branches: [ "proof2/**" ]
+jobs:
+  NetBSD:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/netbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            /usr/sbin/pkg_add pkgin || true
+            pkgin -y install rust
+          run: |
+            mkdir -p t; uname -a
+            rustc --version
+            git log -1 --format=%H HEAD^ || true
+            TMPDIR=t cargo test --all-features --test waker --test regressions 2>&1 | tee /tmp/out.txt || true
+            grep -E "^test |test result|panicked|assertion" /tmp/out.txt
+  OpenBSD:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg_add rust
+          run: |
+            mkdir -p t; uname -a
+            rustc --version
+            git log -1 --format=%H HEAD^ || true
+            TMPDIR=t cargo test --all-features --test waker --test regressions 2>&1 | tee /tmp/out.txt || true
+            grep -E "^test |test result|panicked|assertion" /tmp/out.txt
+  DragonFly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/dragonflybsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y rust
+          run: |
+            mkdir -p t; uname -a
+            rustc --version
+            git log -1 --format=%H HEAD^ || true
+            TMPDIR=t cargo test --all-features --test waker --test regressions 2>&1 | tee /tmp/out.txt || true
+            grep -E "^test |test result|panicked|assertion" /tmp/out.txt
